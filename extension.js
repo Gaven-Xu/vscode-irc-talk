@@ -1,34 +1,59 @@
 // Import the module and reference it with the alias vscode in your code below
-const vscode = require('vscode');
+const { commands, window, StatusBarAlignment } = require('vscode');
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
-function activate(context) {
-  let disposable = vscode.commands.registerCommand('extension.sayHello', function () {
-    vscode.window.showInformationMessage('Hello World!');
+exports.activate = function (context) {
+  let wordCounter = new WordCounter();
+  let disposable = commands.registerCommand('extension.sayHello', () => {
+    wordCounter.updateWordCount();
   });
+  context.subscriptions.push(wordCounter);
   context.subscriptions.push(disposable);
+}
 
-  let disposableHi = vscode.commands.registerCommand('extension.sayHi', function () {
+exports.deactivate = function () {
 
-    let editor = vscode.window.activeTextEditor;
+}
+
+class WordCounter {
+
+  constructor() {
+    this._statusBarItem = window.createStatusBarItem(StatusBarAlignment.Left);
+  }
+
+  updateWordCount() {
+    let editor = window.activeTextEditor;
 
     if (!editor) {
+      this._statusBarItem.hide();
       return;
     }
 
-    let selection = editor.selection;
-    let text = editor.document.getText(selection);
+    let doc = editor.document;
+    if (doc.languageId === 'markdown') {
+      let wordCount = this._getWordCount(doc);
+      this._statusBarItem.text = wordCount !== 1 ? `${wordCount} Words` : '1 Word';
+      this._statusBarItem.show();
+    } else {
+      this._statusBarItem.hide();
+    }
+  }
 
-    vscode.window.showInformationMessage('你选中了' + text.length + '字符');
+  _getWordCount(doc) {
+    let docContent = doc.getText();
+    // Parse out unwanted whitespace so the split is accurate
+    docContent = docContent.replace(/(< ([^>]+)<)/g, '').replace(/\s+/g, ' ');
+    docContent = docContent.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
 
-  })
-  context.subscriptions.push(disposableHi);
+    let wordCount = 0;
+    if (docContent !== "") {
+      wordCount = docContent.split(" ").length;
+    }
+
+    return wordCount;
+  }
+
+  dispose() {
+    this._statusBarItem.dispose();
+  }
 
 }
-exports.activate = activate;
-
-// this method is called when your extension is deactivated
-function deactivate() {
-}
-exports.deactivate = deactivate;
